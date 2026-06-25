@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Taktiktafel">
+<meta name="theme-color" content="#2d7a3a">
+<link rel="manifest" href="manifest.json">
+<title>Taktiktafel</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#1a1a1a;--surface:#252525;--border:rgba(255,255,255,0.12);--text:#f0f0f0;--text-muted:#888;--radius:8px;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+#app{display:flex;flex-direction:column;height:100dvh;padding:8px;gap:6px;}
+.team-bars{display:flex;gap:6px;flex-shrink:0;}
+.team-bar{flex:1;display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);}
+.team-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+.team-bar label{font-size:11px;color:var(--text-muted);white-space:nowrap;}
+.team-bar select{font-size:12px;background:transparent;color:var(--text);border:none;outline:none;cursor:pointer;flex:1;}
+.team-bar select option{background:#333;}
+.toggle-btn{font-size:11px;padding:3px 8px;border:0.5px solid var(--border);border-radius:6px;background:transparent;color:var(--text-muted);cursor:pointer;white-space:nowrap;}
+.toggle-btn.active{color:var(--text);border-color:rgba(255,255,255,0.3);}
+.toolbar{display:flex;align-items:center;gap:5px;padding:6px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);flex-shrink:0;flex-wrap:wrap;}
+.tbtn{padding:5px 10px;font-size:12px;border:0.5px solid var(--border);border-radius:6px;background:transparent;color:var(--text-muted);cursor:pointer;}
+.tbtn:hover{background:rgba(255,255,255,0.07);color:var(--text);}
+.tbtn.active{background:rgba(255,255,255,0.1);color:var(--text);border-color:rgba(255,255,255,0.3);}
+.sep{width:0.5px;height:18px;background:var(--border);margin:0 2px;}
+.lbl{font-size:11px;color:var(--text-muted);}
+#acol{width:24px;height:24px;border-radius:50%;border:0.5px solid var(--border);cursor:pointer;padding:0;background:none;}
+#cwrap{position:relative;flex:1;min-height:0;border-radius:var(--radius);overflow:hidden;border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;background:#111;}
+#pitch-svg{display:block;max-width:100%;max-height:100%;width:auto;height:100%;}
+#overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;}
+#dcanvas{position:absolute;top:0;left:0;width:100%;height:100%;}
+#players-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;}
+.ptok{position:absolute;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;cursor:grab;transform:translate(-50%,-50%);border:2px solid rgba(255,255,255,0.8);z-index:10;color:white;user-select:none;-webkit-user-select:none;}
+.ptok.dragging{cursor:grabbing;z-index:20;}
+#edit-panel{flex-shrink:0;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 10px;max-height:110px;overflow-y:auto;}
+#edit-panel h3{font-size:11px;font-weight:500;color:var(--text-muted);margin-bottom:6px;}
+.pos-group-label{font-size:10px;color:var(--text-muted);margin:4px 0 3px;}
+.pos-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px;}
+.pos-item{display:flex;align-items:center;gap:3px;}
+.pos-swatch{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.pos-item input[type=text]{width:46px;font-size:11px;padding:2px 5px;border:0.5px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);outline:none;}
+.pos-item input[type=text]:focus{border-color:rgba(255,255,255,0.3);}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="team-bars">
+    <div class="team-bar">
+      <div class="team-dot" style="background:#1a5eb8;"></div>
+      <label>Heim:</label>
+      <select id="fsel1">
+        <option value="4-3-3">4-3-3</option>
+        <option value="4-4-2">4-4-2</option>
+        <option value="4-2-3-1">4-2-3-1</option>
+        <option value="3-5-2">3-5-2</option>
+        <option value="5-3-2">5-3-2</option>
+        <option value="3-4-3">3-4-3</option>
+      </select>
+    </div>
+    <div class="team-bar">
+      <div class="team-dot" style="background:#b91c1c;"></div>
+      <label>Gast:</label>
+      <select id="fsel2">
+        <option value="4-3-3">4-3-3</option>
+        <option value="4-4-2">4-4-2</option>
+        <option value="4-2-3-1">4-2-3-1</option>
+        <option value="3-5-2">3-5-2</option>
+        <option value="5-3-2">5-3-2</option>
+        <option value="3-4-3">3-4-3</option>
+      </select>
+      <button class="toggle-btn" id="btn-team2">Anzeigen</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="tbtn active" id="btn-drag">✥ Verschieben</button>
+    <button class="tbtn" id="btn-arrow">↗ Pfeil</button>
+    <button class="tbtn" id="btn-line">— Linie</button>
+    <div class="sep"></div>
+    <span class="lbl">Farbe:</span>
+    <input type="color" id="acol" value="#ffffff">
+    <div class="sep"></div>
+    <button class="tbtn" id="btn-clr">⌫ Löschen</button>
+    <div class="sep"></div>
+    <button class="tbtn" id="btn-export">↓ PNG</button>
+  </div>
+
+  <div id="cwrap">
+    <svg id="pitch-svg" viewBox="0 0 680 980" xmlns="http://www.w3.org/2000/svg">
+      <rect width="680" height="980" fill="#2d7a3a"/>
+      <rect x="0"   y="0" width="68" height="980" fill="#2d7a3a"/>
+      <rect x="68"  y="0" width="68" height="980" fill="#2a7237"/>
+      <rect x="136" y="0" width="68" height="980" fill="#2d7a3a"/>
+      <rect x="204" y="0" width="68" height="980" fill="#2a7237"/>
+      <rect x="272" y="0" width="68" height="980" fill="#2d7a3a"/>
+      <rect x="340" y="0" width="68" height="980" fill="#2a7237"/>
+      <rect x="408" y="0" width="68" height="980" fill="#2d7a3a"/>
+      <rect x="476" y="0" width="68" height="980" fill="#2a7237"/>
+      <rect x="544" y="0" width="68" height="980" fill="#2d7a3a"/>
+      <rect x="612" y="0" width="68" height="980" fill="#2a7237"/>
+      <rect x="30" y="20" width="620" height="940" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2.5"/>
+      <line x1="30" y1="510" x2="650" y2="510" stroke="rgba(255,255,255,0.85)" stroke-width="2.5"/>
+      <circle cx="340" cy="510" r="80" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2.5"/>
+      <circle cx="340" cy="510" r="4" fill="rgba(255,255,255,0.85)"/>
+      <rect x="150" y="20" width="380" height="140" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2.5"/>
+      <rect x="245" y="20" width="190" height="55" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2.5"/>
+      <circle cx="340" cy="115" r="4" fill="rgba(255,255,255,0.85)"/>
+      <path d="M 230 160 A 80 80 0 0 0 450 160" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2.5"/>
+      <rect x="150" y="820" width="380" height="140" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2.5"/>
+      <rect x="245" y="905" width="190" height="55" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2.5"/>
+      <circle cx="340" cy="865" r="4" fill="rgba(255,255,255,0.85)"/>
+      <path d="M 230 820 A 80 80 0 0 1 450 820" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2.5"/>
+      <rect x="285" y="10" width="110" height="12" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2"/>
+      <rect x="285" y="958" width="110" height="12" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2"/>
+      <path d="M 30 32 A 12 12 0 0 1 42 20" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2"/>
+      <path d="M 638 20 A 12 12 0 0 1 650 32" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2"/>
+      <path d="M 30 948 A 12 12 0 0 0 42 960" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2"/>
+      <path d="M 638 960 A 12 12 0 0 0 650 948" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2"/>
+    </svg>
+    <div id="overlay">
+      <canvas id="dcanvas"></canvas>
+      <div id="players-layer"></div>
+    </div>
+  </div>
+
+  <div id="edit-panel">
+    <h3>Positionsbezeichnungen</h3>
+    <div id="pos-list"></div>
+  </div>
+</div>
+
+<script>
+const BASE={
+  '4-3-3':{t1:[{x:50,y:93,n:'TW'},{x:15,y:80,n:'LV'},{x:37,y:83,n:'IV'},{x:63,y:83,n:'IV'},{x:85,y:80,n:'RV'},{x:22,y:60,n:'ZM'},{x:50,y:56,n:'ZM'},{x:78,y:60,n:'ZM'},{x:12,y:34,n:'LA'},{x:50,y:28,n:'ST'},{x:88,y:34,n:'RA'}],t2:[{x:50,y:7,n:'TW'},{x:15,y:20,n:'LV'},{x:37,y:17,n:'IV'},{x:63,y:17,n:'IV'},{x:85,y:20,n:'RV'},{x:22,y:40,n:'ZM'},{x:50,y:44,n:'ZM'},{x:78,y:40,n:'ZM'},{x:12,y:66,n:'LA'},{x:50,y:72,n:'ST'},{x:88,y:66,n:'RA'}]},
+  '4-4-2':{t1:[{x:50,y:93,n:'TW'},{x:13,y:80,n:'LV'},{x:37,y:83,n:'IV'},{x:63,y:83,n:'IV'},{x:87,y:80,n:'RV'},{x:13,y:60,n:'LM'},{x:37,y:60,n:'ZM'},{x:63,y:60,n:'ZM'},{x:87,y:60,n:'RM'},{x:36,y:30,n:'ST'},{x:64,y:30,n:'ST'}],t2:[{x:50,y:7,n:'TW'},{x:13,y:20,n:'LV'},{x:37,y:17,n:'IV'},{x:63,y:17,n:'IV'},{x:87,y:20,n:'RV'},{x:13,y:40,n:'LM'},{x:37,y:40,n:'ZM'},{x:63,y:40,n:'ZM'},{x:87,y:40,n:'RM'},{x:36,y:70,n:'ST'},{x:64,y:70,n:'ST'}]},
+  '4-2-3-1':{t1:[{x:50,y:93,n:'TW'},{x:13,y:80,n:'LV'},{x:37,y:83,n:'IV'},{x:63,y:83,n:'IV'},{x:87,y:80,n:'RV'},{x:33,y:65,n:'DM'},{x:67,y:65,n:'DM'},{x:12,y:46,n:'LM'},{x:50,y:44,n:'ZO'},{x:88,y:46,n:'RM'},{x:50,y:26,n:'ST'}],t2:[{x:50,y:7,n:'TW'},{x:13,y:20,n:'LV'},{x:37,y:17,n:'IV'},{x:63,y:17,n:'IV'},{x:87,y:20,n:'RV'},{x:33,y:35,n:'DM'},{x:67,y:35,n:'DM'},{x:12,y:54,n:'LM'},{x:50,y:56,n:'ZO'},{x:88,y:54,n:'RM'},{x:50,y:74,n:'ST'}]},
+  '3-5-2':{t1:[{x:50,y:93,n:'TW'},{x:25,y:82,n:'IV'},{x:50,y:84,n:'IV'},{x:75,y:82,n:'IV'},{x:8,y:62,n:'LM'},{x:30,y:58,n:'ZM'},{x:50,y:56,n:'ZM'},{x:70,y:58,n:'ZM'},{x:92,y:62,n:'RM'},{x:36,y:28,n:'ST'},{x:64,y:28,n:'ST'}],t2:[{x:50,y:7,n:'TW'},{x:25,y:18,n:'IV'},{x:50,y:16,n:'IV'},{x:75,y:18,n:'IV'},{x:8,y:38,n:'LM'},{x:30,y:42,n:'ZM'},{x:50,y:44,n:'ZM'},{x:70,y:42,n:'ZM'},{x:92,y:38,n:'RM'},{x:36,y:72,n:'ST'},{x:64,y:72,n:'ST'}]},
+  '5-3-2':{t1:[{x:50,y:93,n:'TW'},{x:8,y:78,n:'LV'},{x:27,y:82,n:'IV'},{x:50,y:84,n:'IV'},{x:73,y:82,n:'IV'},{x:92,y:78,n:'RV'},{x:25,y:58,n:'ZM'},{x:50,y:55,n:'ZM'},{x:75,y:58,n:'ZM'},{x:36,y:28,n:'ST'},{x:64,y:28,n:'ST'}],t2:[{x:50,y:7,n:'TW'},{x:8,y:22,n:'LV'},{x:27,y:18,n:'IV'},{x:50,y:16,n:'IV'},{x:73,y:18,n:'IV'},{x:92,y:22,n:'RV'},{x:25,y:42,n:'ZM'},{x:50,y:45,n:'ZM'},{x:75,y:42,n:'ZM'},{x:36,y:72,n:'ST'},{x:64,y:72,n:'ST'}]},
+  '3-4-3':{t1:[{x:50,y:93,n:'TW'},{x:25,y:82,n:'IV'},{x:50,y:84,n:'IV'},{x:75,y:82,n:'IV'},{x:8,y:62,n:'LM'},{x:35,y:60,n:'ZM'},{x:65,y:60,n:'ZM'},{x:92,y:62,n:'RM'},{x:12,y:32,n:'LA'},{x:50,y:27,n:'ST'},{x:88,y:32,n:'RA'}],t2:[{x:50,y:7,n:'TW'},{x:25,y:18,n:'IV'},{x:50,y:16,n:'IV'},{x:75,y:18,n:'IV'},{x:8,y:38,n:'LM'},{x:35,y:40,n:'ZM'},{x:65,y:40,n:'ZM'},{x:92,y:38,n:'RM'},{x:12,y:68,n:'LA'},{x:50,y:73,n:'ST'},{x:88,y:68,n:'RA'}]}
+};
+
+function dc(f){return JSON.parse(JSON.stringify(f));}
+
+const cwrap=document.getElementById('cwrap');
+const pitchSvg=document.getElementById('pitch-svg');
+const overlay=document.getElementById('overlay');
+const layer=document.getElementById('players-layer');
+const dcanvas=document.getElementById('dcanvas');
+const ctx=dcanvas.getContext('2d');
+const posList=document.getElementById('pos-list');
+
+let tool='drag',showT2=false,drawColor='#ffffff';
+let lines=[],drawing=false,startPt=null;
+let curF1='4-3-3',curF2='4-3-3';
+let posT1=dc(BASE['4-3-3'].t1),posT2=dc(BASE['4-3-3'].t2);
+let tokEls=[];
+let ballPos={x:50,y:50};
+let ballEl=null;
+
+// Get the actual rendered rect of the SVG pitch (may be letterboxed inside cwrap)
+function getPitchRect(){
+  return pitchSvg.getBoundingClientRect();
+}
+
+// Convert percentage coords (relative to pitch) to pixel offset from overlay top-left
+function pctToOverlay(px,py){
+  const pr=getPitchRect();
+  const or=overlay.getBoundingClientRect();
+  return {
+    x: (pr.left - or.left) + (px/100)*pr.width,
+    y: (pr.top  - or.top)  + (py/100)*pr.height
+  };
+}
+
+// Convert client coords to percentage within pitch
+function clientToPct(cx,cy){
+  const pr=getPitchRect();
+  return {
+    x: ((cx-pr.left)/pr.width)*100,
+    y: ((cy-pr.top)/pr.height)*100
+  };
+}
+
+function syncOverlay(){
+  const or=cwrap.getBoundingClientRect();
+  overlay.style.width=or.width+'px';
+  overlay.style.height=or.height+'px';
+  dcanvas.width=or.width;
+  dcanvas.height=or.height;
+  redraw();
+  tokEls.forEach(({el,ti,i})=>{
+    const p=(ti===0?posT1:posT2)[i];
+    const pos=pctToOverlay(p.x,p.y);
+    el.style.left=pos.x+'px';
+    el.style.top=pos.y+'px';
+  });
+  if(ballEl){
+    const bp=pctToOverlay(ballPos.x,ballPos.y);
+    ballEl.style.left=bp.x+'px';
+    ballEl.style.top=bp.y+'px';
+  }
+}
+
+function renderBall(){
+  if(ballEl) ballEl.remove();
+  ballEl=document.createElement('div');
+  ballEl.style.cssText='position:absolute;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff 0%,#ddd 40%,#aaa 100%);border:1.5px solid rgba(0,0,0,0.4);transform:translate(-50%,-50%);cursor:grab;z-index:15;box-shadow:0 2px 4px rgba(0,0,0,0.5);';
+  const bp=pctToOverlay(ballPos.x,ballPos.y);
+  ballEl.style.left=bp.x+'px';
+  ballEl.style.top=bp.y+'px';
+  ballEl.title='Ball';
+  layer.appendChild(ballEl);
+  makeDragBall(ballEl);
+}
+
+function makeDragBall(el){
+  el.addEventListener('mousedown',start);
+  el.addEventListener('touchstart',start,{passive:false});
+  function start(e){
+    if(tool!=='drag') return; e.preventDefault(); e.stopPropagation();
+    el.style.cursor='grabbing';
+    const cl=e.touches?e.touches[0]:e;
+    const startX=cl.clientX, startY=cl.clientY;
+    const origLeft=parseFloat(el.style.left), origTop=parseFloat(el.style.top);
+    function move(e){ e.preventDefault();
+      const cl2=e.touches?e.touches[0]:e;
+      const dx=cl2.clientX-startX, dy=cl2.clientY-startY;
+      let nx=origLeft+dx, ny=origTop+dy;
+      const pr=getPitchRect(), or=overlay.getBoundingClientRect();
+      const pLeft=pr.left-or.left, pTop=pr.top-or.top;
+      nx=Math.max(pLeft,Math.min(pLeft+pr.width,nx));
+      ny=Math.max(pTop,Math.min(pTop+pr.height,ny));
+      el.style.left=nx+'px'; el.style.top=ny+'px';
+      const pct=clientToPct(or.left+nx, or.top+ny);
+      ballPos.x=pct.x; ballPos.y=pct.y;
+    }
+    function end(){ el.style.cursor='grab'; document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',end); document.removeEventListener('touchmove',move); document.removeEventListener('touchend',end); }
+    document.addEventListener('mousemove',move); document.addEventListener('mouseup',end);
+    document.addEventListener('touchmove',move,{passive:false}); document.addEventListener('touchend',end);
+  }
+}
+
+function redraw(){
+  ctx.clearRect(0,0,dcanvas.width,dcanvas.height);
+  lines.forEach(l=>{
+    const p1=pctToOverlay(l.x1,l.y1), p2=pctToOverlay(l.x2,l.y2);
+    ctx.strokeStyle=l.c; ctx.lineWidth=2.5; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+    if(l.t==='arrow'){
+      const a=Math.atan2(p2.y-p1.y,p2.x-p1.x); ctx.fillStyle=l.c; ctx.beginPath();
+      ctx.moveTo(p2.x,p2.y);
+      ctx.lineTo(p2.x-13*Math.cos(a-0.38),p2.y-13*Math.sin(a-0.38));
+      ctx.lineTo(p2.x-13*Math.cos(a+0.38),p2.y-13*Math.sin(a+0.38));
+      ctx.closePath(); ctx.fill();
+    }
+  });
+}
+
+function renderPlayers(){
+  layer.innerHTML=''; tokEls=[]; ballEl=null;
+  const teams=[{pos:posT1,col:'#1a5eb8',ti:0}];
+  if(showT2) teams.push({pos:posT2,col:'#b91c1c',ti:1});
+  teams.forEach(({pos,col,ti})=>{
+    pos.forEach((p,i)=>{
+      const el=document.createElement('div');
+      el.className='ptok';
+      el.style.background=col;
+      el.textContent=p.n;
+      const pos2=pctToOverlay(p.x,p.y);
+      el.style.left=pos2.x+'px';
+      el.style.top=pos2.y+'px';
+      layer.appendChild(el);
+      tokEls.push({el,ti,i});
+      makeDrag(el,ti,i);
+    });
+  });
+  renderBall();
+  buildPanel();
+}
+
+function buildPanel(){
+  posList.innerHTML='';
+  const teams=[{pos:posT1,col:'#1a5eb8',label:'Heim'}];
+  if(showT2) teams.push({pos:posT2,col:'#b91c1c',label:'Gast'});
+  teams.forEach(({pos,col,label},ti)=>{
+    const gl=document.createElement('div'); gl.className='pos-group-label'; gl.textContent=label; posList.appendChild(gl);
+    const row=document.createElement('div'); row.className='pos-row';
+    pos.forEach((p,i)=>{
+      const wrap=document.createElement('div'); wrap.className='pos-item';
+      const sw=document.createElement('div'); sw.className='pos-swatch'; sw.style.background=col;
+      const inp=document.createElement('input'); inp.type='text'; inp.value=p.n; inp.maxLength=6;
+      inp.addEventListener('input',()=>{
+        p.n=inp.value;
+        const tok=tokEls.find(t=>t.ti===ti&&t.i===i);
+        if(tok) tok.el.textContent=inp.value;
+      });
+      wrap.appendChild(sw); wrap.appendChild(inp); row.appendChild(wrap);
+    });
+    posList.appendChild(row);
+  });
+}
+
+function makeDrag(el,ti,i){
+  el.addEventListener('mousedown',start);
+  el.addEventListener('touchstart',start,{passive:false});
+  function start(e){
+    if(tool!=='drag') return; e.preventDefault(); e.stopPropagation();
+    el.classList.add('dragging');
+    const cl=e.touches?e.touches[0]:e;
+    const startX=cl.clientX, startY=cl.clientY;
+    const origLeft=parseFloat(el.style.left), origTop=parseFloat(el.style.top);
+    function move(e){
+      e.preventDefault();
+      const cl2=e.touches?e.touches[0]:e;
+      const dx=cl2.clientX-startX, dy=cl2.clientY-startY;
+      let nx=origLeft+dx, ny=origTop+dy;
+      // clamp within pitch bounds
+      const pr=getPitchRect(), or=overlay.getBoundingClientRect();
+      const pLeft=pr.left-or.left, pTop=pr.top-or.top;
+      nx=Math.max(pLeft,Math.min(pLeft+pr.width,nx));
+      ny=Math.max(pTop,Math.min(pTop+pr.height,ny));
+      el.style.left=nx+'px'; el.style.top=ny+'px';
+      // store as pct within pitch
+      const pct=clientToPct(or.left+nx, or.top+ny);
+      (ti===0?posT1:posT2)[i].x=pct.x;
+      (ti===0?posT1:posT2)[i].y=pct.y;
+    }
+    function end(){
+      el.classList.remove('dragging');
+      document.removeEventListener('mousemove',move);
+      document.removeEventListener('mouseup',end);
+      document.removeEventListener('touchmove',move);
+      document.removeEventListener('touchend',end);
+    }
+    document.addEventListener('mousemove',move);
+    document.addEventListener('mouseup',end);
+    document.addEventListener('touchmove',move,{passive:false});
+    document.addEventListener('touchend',end);
+  }
+}
+
+dcanvas.addEventListener('mousedown',e=>{
+  if(tool==='drag') return;
+  drawing=true;
+  const cl=clientToPct(e.clientX,e.clientY);
+  startPt=cl;
+});
+dcanvas.addEventListener('mousemove',e=>{
+  if(!drawing) return;
+  const cur=clientToPct(e.clientX,e.clientY);
+  dcanvas.width=dcanvas.width; redraw();
+  const p1=pctToOverlay(startPt.x,startPt.y), p2=pctToOverlay(cur.x,cur.y);
+  ctx.strokeStyle=drawColor; ctx.lineWidth=2.5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+  if(tool==='arrow'){
+    const a=Math.atan2(p2.y-p1.y,p2.x-p1.x); ctx.fillStyle=drawColor; ctx.beginPath();
+    ctx.moveTo(p2.x,p2.y);
+    ctx.lineTo(p2.x-13*Math.cos(a-0.38),p2.y-13*Math.sin(a-0.38));
+    ctx.lineTo(p2.x-13*Math.cos(a+0.38),p2.y-13*Math.sin(a+0.38));
+    ctx.closePath(); ctx.fill();
+  }
+});
+dcanvas.addEventListener('mouseup',e=>{
+  if(!drawing) return; drawing=false;
+  lines.push({x1:startPt.x,y1:startPt.y,x2:clientToPct(e.clientX,e.clientY).x,y2:clientToPct(e.clientX,e.clientY).y,c:drawColor,t:tool});
+  redraw();
+});
+
+function setTool(t){
+  tool=t;
+  dcanvas.style.pointerEvents=(t==='drag')?'none':'all';
+  layer.style.pointerEvents=(t==='drag')?'all':'none';
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('btn-'+t).classList.add('active');
+}
+
+document.getElementById('btn-drag').addEventListener('click',()=>setTool('drag'));
+document.getElementById('btn-arrow').addEventListener('click',()=>setTool('arrow'));
+document.getElementById('btn-line').addEventListener('click',()=>setTool('line'));
+document.getElementById('btn-clr').addEventListener('click',()=>{lines=[];redraw();});
+document.getElementById('acol').addEventListener('input',e=>drawColor=e.target.value);
+document.getElementById('btn-team2').addEventListener('click',()=>{
+  showT2=!showT2;
+  document.getElementById('btn-team2').textContent=showT2?'Ausblenden':'Anzeigen';
+  document.getElementById('btn-team2').classList.toggle('active',showT2);
+  renderPlayers();
+});
+document.getElementById('fsel1').addEventListener('change',e=>{curF1=e.target.value;posT1=dc(BASE[curF1].t1);lines=[];redraw();renderPlayers();});
+document.getElementById('fsel2').addEventListener('change',e=>{curF2=e.target.value;posT2=dc(BASE[curF2].t2);renderPlayers();});
+
+document.getElementById('btn-export').addEventListener('click',()=>{
+  const svg=document.getElementById('pitch-svg');
+  const svgData=new XMLSerializer().serializeToString(svg);
+  const blob=new Blob([svgData],{type:'image/svg+xml;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const img=new Image();
+  img.onload=()=>{
+    const pr=getPitchRect(), scale=2;
+    const oc=document.createElement('canvas'); oc.width=pr.width*scale; oc.height=pr.height*scale;
+    const octx=oc.getContext('2d'); octx.scale(scale,scale);
+    octx.drawImage(img,0,0,pr.width,pr.height);
+    // draw lines offset to pitch coords
+    const or=overlay.getBoundingClientRect();
+    const offX=pr.left-or.left, offY=pr.top-or.top;
+    lines.forEach(l=>{
+      const p1=pctToOverlay(l.x1,l.y1), p2=pctToOverlay(l.x2,l.y2);
+      const x1=p1.x-offX, y1=p1.y-offY, x2=p2.x-offX, y2=p2.y-offY;
+      octx.strokeStyle=l.c; octx.lineWidth=2.5; octx.lineCap='round';
+      octx.beginPath(); octx.moveTo(x1,y1); octx.lineTo(x2,y2); octx.stroke();
+      if(l.t==='arrow'){
+        const a=Math.atan2(y2-y1,x2-x1); octx.fillStyle=l.c; octx.beginPath();
+        octx.moveTo(x2,y2);
+        octx.lineTo(x2-13*Math.cos(a-0.38),y2-13*Math.sin(a-0.38));
+        octx.lineTo(x2-13*Math.cos(a+0.38),y2-13*Math.sin(a+0.38));
+        octx.closePath(); octx.fill();
+      }
+    });
+    tokEls.forEach(({el,ti})=>{
+      const er=el.getBoundingClientRect();
+      const cx=er.left-pr.left+er.width/2, cy=er.top-pr.top+er.height/2;
+      octx.beginPath(); octx.arc(cx,cy,15,0,Math.PI*2);
+      octx.fillStyle=ti===0?'#1a5eb8':'#b91c1c'; octx.fill();
+      octx.strokeStyle='rgba(255,255,255,0.85)'; octx.lineWidth=2; octx.stroke();
+      octx.fillStyle='white'; octx.font='bold 10px -apple-system,sans-serif';
+      octx.textAlign='center'; octx.textBaseline='middle';
+      octx.fillText(el.textContent,cx,cy);
+    });
+    const link=document.createElement('a'); link.download='aufstellung.png'; link.href=oc.toDataURL('image/png'); link.click();
+    URL.revokeObjectURL(url);
+  };
+  img.src=url;
+});
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+
+const ro=new ResizeObserver(()=>{ syncOverlay(); renderPlayers(); });
+ro.observe(cwrap);
+ro.observe(pitchSvg);
+
+window.addEventListener('load',()=>{ setTimeout(()=>{ syncOverlay(); renderPlayers(); },100); });
+setTool('drag');
+</script>
+</body>
+</html>
