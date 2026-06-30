@@ -1,4 +1,4 @@
-const CACHE = 'taktiktafel-v1';
+const CACHE = 'taktiktafel-v3';
 const FILES = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
